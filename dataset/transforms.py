@@ -63,6 +63,62 @@ class RandomCrop:
         tmp_mask[:,:es-ss] = mask[:,ss:es]
         return tmp_img, tmp_mask
 
+
+class CropToFixed:
+    def __init__(self, size=(256, 256, 256), centered=False, **kwargs):
+        self.crop_d, self.crop_y, self.crop_x = size
+        self.centered = centered
+
+    def __call__(self, m, s):
+        def _padding(m, pad_total, axis):
+            pad_left = pad_total // 2
+            pad_right = pad_total - pad_left
+
+            pad_width = tuple( [(0, 0)]*m.ndim )
+            pad_width[axis] = (pad_left, pad_right)
+
+            padded_m = np.pad(m, pad_width=pad_width, mode='reflect')
+            return padded_m
+
+        def _crop_start_pad_width(crop_size, max_size, centered=False):
+            """return 1)starting position for cropping, 2)total_width for padding"""
+            if crop_size < max_size:
+                if centered:
+                    return (max_size - crop_size) // 2, 0
+                else:
+                    return np.random.randint(max_size - crop_size), 0
+            else:
+                return 0, crop_size-max_size
+
+        assert m.ndim==3 or m.ndim==4
+        if m.ndim==3:
+            d, y, x = m.shape
+        if m.ndim==4:
+            _, d, y, x = m.shape
+
+        d_start, d_pad_width = _crop_start_pad_width(self.crop_d, d, centered=self.centered)
+        if d_pad_width>0:
+            m = _padding(m, pad_total=d_pad_width, axis=0 + m.ndim-3)
+            s = _padding(s, pad_total=d_pad_width, axis=0 + m.ndim-3)
+
+        y_start, y_pad_width = _crop_start_pad_width(self.crop_y, y, centered=self.centered)
+        if y_pad_width>0:
+            m = _padding(m, pad_total=y_pad_width, axis=1 + m.ndim-3)
+            s = _padding(s, pad_total=y_pad_width, axis=1 + m.ndim-3)
+
+        x_start, x_pad_width = _crop_start_pad_width(self.crop_x, x, centered=self.centered)
+        if x_pad_width>0:
+            m = _padding(m, pad_total=x_pad_width, axis=2 + m.ndim-3)
+            s = _padding(s, pad_total=x_pad_width, axis=2 + m.ndim-3)
+
+        if m.ndim==3:
+            return m[d_start:d_start + self.crop_d, y_start:y_start + self.crop_y, x_start:x_start + self.crop_x], \
+                   s[d_start:d_start + self.crop_d, y_start:y_start + self.crop_y, x_start:x_start + self.crop_x]
+        else:
+            return m[:, d_start:d_start + self.crop_d, y_start:y_start + self.crop_y, x_start:x_start + self.crop_x], \
+                   s[:, d_start:d_start + self.crop_d, y_start:y_start + self.crop_y, x_start:x_start + self.crop_x]
+
+
 class RandomFlip_LR:
     def __init__(self, prob=0.5):
         self.prob = prob
