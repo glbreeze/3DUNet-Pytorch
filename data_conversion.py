@@ -4,14 +4,14 @@ import sys
 import torch
 import numpy as np
 import matplotlib.pylab as plt
-from .data_process import load_scan, get_pixels_hu, resample, resample_both, plot_3d
+from dataset.data_process import load_scan, get_pixels_hu, resample, resample_both, plot_3d
 import SimpleITK as sitk
 import nibabel as nib
 import h5py
 
 # root = '../dataset/medical_image/'
 
-root = os.listdir(f"../dataset/{sys.argv[1]}")
+root = f"../dataset/{sys.argv[1]}"
 
 def convert_data(root):
     total_pids = 0
@@ -25,7 +25,7 @@ def convert_data(root):
             continue
 
         total_pids += 1
-        dates = os.listdir(os.path.join(os.path.join(raw_path, 'ct'), pid))
+        dates = os.listdir(os.path.join(raw_path, 'ct', pid))
         dates = [date for date in dates if date[0]!='.']
         date = dates[0] if dates[0] < dates[1] else dates[1]
 
