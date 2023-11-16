@@ -1,18 +1,16 @@
-from dataset.dataset_lits_val import Val_Dataset
-from dataset.dataset_lits_train import Train_Dataset
 
-from torch.utils.data import DataLoader
-import torch
-import torch.optim as optim
-from tqdm import tqdm
-import config
-
-from models import UNet, ResUNet , KiUNet_min, SegNet
-
-from utils import logger, weights_init, metrics, common, loss
 import os
+import torch
 import numpy as np
+import torch.optim as optim
+from torch.utils.data import DataLoader
 from collections import OrderedDict
+from tqdm import tqdm
+
+import config
+from models import UNet, ResUNet , KiUNet_min
+from dataset.dataset_lits import CT_Dataset
+from utils import logger, weights_init, metrics, common, loss
 
 def val(model, val_loader, loss_func, n_labels):
     model.eval()
@@ -61,23 +59,22 @@ def train(model, train_loader, optimizer, loss_func, n_labels, alpha):
     if n_labels==3: val_log.update({'Train_dice_tumor': train_dice.avg[2]})
     return val_log
 
+
 if __name__ == '__main__':
     args = config.args
-    save_path = os.path.join('./experiments', args.save)
+    save_path = os.path.join('./experiments', args.exp_name)
     if not os.path.exists(save_path): os.mkdir(save_path)
     device = torch.device('cpu' if args.cpu else 'cuda')
     # data info
-    train_loader = DataLoader(dataset=Train_Dataset(args),batch_size=args.batch_size,num_workers=args.n_threads, shuffle=True)
-    val_loader = DataLoader(dataset=Val_Dataset(args),batch_size=1,num_workers=args.n_threads, shuffle=False)
+    train_loader = DataLoader(dataset=CT_Dataset(args, mode='train'),batch_size=args.batch_size,num_workers=args.n_threads, shuffle=True)
+    val_loader = DataLoader(dataset=CT_Dataset(args, mode='val'),batch_size=1,num_workers=args.n_threads, shuffle=False)
 
     # model info
     model = ResUNet(in_channel=1, out_channel=args.n_labels,training=True).to(device)
-
     model.apply(weights_init.init_model)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     common.print_network(model)
-    model = torch.nn.DataParallel(model, device_ids=args.gpu_id)  # multi-GPU
- 
+
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     loss = loss.TverskyLoss()
 
     log = logger.Train_Logger(save_path,"train_log")

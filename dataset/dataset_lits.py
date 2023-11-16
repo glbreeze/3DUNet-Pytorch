@@ -3,7 +3,6 @@ import os
 import sys
 import random
 import numpy as np
-import SimpleITK as sitk
 import torch
 import nrrd
 import h5py
@@ -12,23 +11,27 @@ from torch.utils.data import Dataset as dataset
 from .transforms import RandomCrop, RandomFlip_LR, RandomFlip_UD, Center_Crop, Compose, Resize, Normalize, CropToFixed
 
 
-class Train_Dataset(dataset):
-    def __init__(self, args):
+class CT_Dataset(dataset):
+    def __init__(self, args, mode='train'):
 
         self.args = args
+        self.mode = mode
 
-        self.filename_list = self.load_file_name_list('./dataset/data_list/train_list.txt')
-
-        self.transforms = Compose([
-            # Normalize(mean=stat['mean'], std=stat['std']),
-            CropToFixed(size=self.args.crop_size),
-            RandomFlip_LR(prob=0.5),
-            RandomFlip_UD(prob=0.5),
-            # RandomRotate()
+        if mode == 'train':
+            self.filename_list = self.load_file_name_list('./dataset/data_list/train_list.txt')
+            self.transforms = Compose([
+                # Normalize(mean=stat['mean'], std=stat['std']),
+                CropToFixed(size=self.args.crop_size),
+                RandomFlip_LR(prob=0.5),
+                RandomFlip_UD(prob=0.5),
+                # RandomRotate()
             ])
+        else:
+            self.filename_list = self.load_file_name_list('./dataset/data_list/val_list.txt')
+            self.transforms = None
+            # self.transforms = Compose([Center_Crop(base=16, max_size=args.val_crop_max_size)])
 
     def __getitem__(self, index):
-
         file_name = self.filename_list[index]
         if not file_name.endswith('hdf5'):
             file_name += '.hdf5'
@@ -101,7 +104,7 @@ def calculate_stats(images, global_normalization=True):
 if __name__ == "__main__":
     sys.path.append('/ssd/lzq/3DUNet')
     from config import args
-    train_ds = Train_Dataset(args)
+    train_ds = CT_Dataset(args)
 
     # 定义数据加载
     train_dl = DataLoader(train_ds, 2, False, num_workers=1)
